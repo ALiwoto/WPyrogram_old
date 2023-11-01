@@ -852,17 +852,37 @@ class Message(Object, Update):
                 if isinstance(message.reply_to, raw.types.MessageReplyStoryHeader):
                     parsed_message.reply_to_message_id = message.reply_to.story_id
 
+                setattr(parsed_message, "is_cross_chat", False)
                 if replies:
                     try:
-                        key = (parsed_message.chat.id, parsed_message.reply_to_message_id)
+                        is_cross_chat = \
+                            message.reply_to and \
+                            hasattr(message.reply_to, "reply_to_peer_id") and \
+                            message.reply_to.reply_to_peer_id and \
+                            hasattr(message.reply_to.reply_to_peer_id, "channel_id") and \
+                            message.reply_to.reply_to_peer_id.channel_id
+                        if is_cross_chat:
+                            key = (f"-100{message.reply_to.reply_to_peer_id.channel_id}",
+                                message.reply_to.reply_to_msg_id)
+                            setattr(parsed_message, "is_cross_chat", True)
+                        else:
+                            key = (parsed_message.chat.id, parsed_message.reply_to_message_id)
+                        
                         reply_to_message = client.message_cache[key]
 
                         if not reply_to_message:
-                            reply_to_message = await client.get_messages(
-                                parsed_message.chat.id,
-                                reply_to_message_ids=message.id,
-                                replies=replies - 1
-                            )
+                            if is_cross_chat:
+                                reply_to_message = await client.get_messages(
+                                    chat_id=key[0],
+                                    message_ids=key[1],
+                                    replies=replies - 1
+                                )
+                            else:
+                                reply_to_message = await client.get_messages(
+                                    chat_id=key[0],
+                                    reply_to_message_ids=key[1],
+                                    replies=replies - 1
+                                )
 
                         parsed_message.reply_to_message = reply_to_message
                     except MessageIdsEmpty:
