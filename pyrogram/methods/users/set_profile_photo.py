@@ -28,6 +28,7 @@ class SetProfilePhoto:
         *,
         photo: Optional[Union[str, BinaryIO]] = None,
         video: Optional[Union[str, BinaryIO]] = None,
+        bot_id: Optional[Union[str, int]] = None,
         is_public: Optional[bool] = None
     ) -> bool:
         """Set a new profile photo or video (H.264/MPEG-4 AVC video, max 5 seconds).
@@ -76,6 +77,7 @@ class SetProfilePhoto:
         return bool(
             await self.invoke(
                 raw.functions.photos.UploadProfilePhoto(
+                    bot=await self.resolve_peer(bot_id),
                     fallback=is_public,
                     file=await self.save_file(photo),
                     video=await self.save_file(video)
